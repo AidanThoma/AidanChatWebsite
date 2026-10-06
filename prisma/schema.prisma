@@ -1,0 +1,51 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model AnonymousUser {
+  id              String        @id @default(uuid())
+  anonymousToken  String        @unique
+  createdAt       DateTime      @default(now())
+  lastSeenAt      DateTime      @default(now())
+  conversations   Conversation[]
+}
+
+model Conversation {
+  id              String      @id @default(uuid())
+  anonymousUserId String
+  anonymousUser   AnonymousUser @relation(fields: [anonymousUserId], references: [id], onDelete: Cascade)
+  title           String
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  adminUnread     Boolean     @default(false)
+  lastMessageAt   DateTime?
+  messages        Message[]
+}
+
+model Message {
+  id            String       @id @default(uuid())
+  conversationId String
+  conversation  Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender        SenderType
+  content       String
+  createdAt     DateTime     @default(now())
+  read          Boolean      @default(false)
+}
+
+model AdminUser {
+  id          String    @id @default(uuid())
+  email       String    @unique
+  passwordHash String   @db.VarChar(255)
+  createdAt   DateTime  @default(now())
+  lastLoginAt DateTime?
+}
+
+enum SenderType {
+  USER
+  ADMIN
+}

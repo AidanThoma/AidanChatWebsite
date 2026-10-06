@@ -1,0 +1,35 @@
+version: '3.9'
+
+services:
+  app:
+    build: .
+    container_name: humanchat-app
+    ports:
+      - '3000:3000'
+    env_file:
+      - .env
+    depends_on:
+      - db
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/humanchat?schema=public
+      AUTH_SECRET: ${AUTH_SECRET}
+      ADMIN_EMAIL: ${ADMIN_EMAIL}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      NEXTAUTH_URL: http://localhost:3000
+    restart: unless-stopped
+
+  db:
+    image: postgres:16-alpine
+    container_name: humanchat-db
+    environment:
+      POSTGRES_DB: humanchat
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
