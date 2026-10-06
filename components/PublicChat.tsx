@@ -90,6 +90,14 @@ export default function PublicChat() {
       refreshConversations();
     });
 
+    socket.on('conversation:deleted', ({ conversationId }: { conversationId: string }) => {
+      setConversations((current) => current.filter((conversation) => conversation.id !== conversationId));
+      if (conversationId === selectedConversationId) {
+        setSelectedConversationId(null);
+        setMessages([]);
+      }
+    });
+
     socket.on('typing:start', (payload) => {
       if (payload.userType === 'ADMIN') {
         setAssistantTyping(true);
@@ -126,6 +134,23 @@ export default function PublicChat() {
     setSelectedConversationId(null);
     setMessages([]);
     setDraft('');
+  };
+
+  const handleDeleteConversation = async (conversationId: string) => {
+    if (!window.confirm('Delete this conversation and its messages? This cannot be undone.')) return;
+
+    const response = await fetch(`/api/conversations/${conversationId}`, { method: 'DELETE' });
+    if (!response.ok) {
+      window.alert('Unable to delete this conversation. Please try again.');
+      return;
+    }
+
+    setConversations((current) => current.filter((conversation) => conversation.id !== conversationId));
+    if (conversationId === selectedConversationId) {
+      setSelectedConversationId(null);
+      setMessages([]);
+      setDraft('');
+    }
   };
 
   const handleSendMessage = async () => {
@@ -178,21 +203,24 @@ export default function PublicChat() {
   };
 
   if (loading) {
-    return <div className="flex min-h-screen items-center justify-center bg-slate-950 text-slate-200">Loading chat...</div>;
+    return <div className="flex min-h-screen items-center justify-center bg-[#080711] text-slate-200">Loading ThomaGPT...</div>;
   }
 
   return (
-    <div className="flex h-screen bg-slate-950 text-slate-100">
-      <aside className="w-full max-w-sm border-r border-slate-800 bg-slate-900/80 p-3">
-        <div className="mb-4 flex items-center justify-between">
+    <div className="flex h-screen bg-[#080711] text-slate-100">
+      <aside className="w-full max-w-sm border-r border-violet-300/10 bg-[#100d1b]/95 p-4 shadow-[12px_0_50px_rgba(0,0,0,0.22)]">
+        <div className="mb-5 flex items-center justify-between">
           <div>
-            <p className="text-xs uppercase tracking-[0.2em] text-slate-400">HumanChat</p>
-            <h1 className="text-2xl font-semibold text-white">Inbox</h1>
+            <div className="mb-1 flex items-center gap-2">
+              <span className="brand-mark flex h-8 w-8 items-center justify-center rounded-xl text-sm font-black text-white">T</span>
+              <p className="brand-text text-sm font-bold tracking-wide">ThomaGPT</p>
+            </div>
+            <h1 className="text-2xl font-semibold tracking-tight text-white">Your chats</h1>
           </div>
           <button
             type="button"
             onClick={handleCreateConversation}
-            className="rounded-lg bg-slate-700 px-3 py-2 text-sm font-medium text-white transition hover:bg-slate-600"
+            className="rounded-xl border border-violet-300/20 bg-gradient-to-r from-violet-600/90 to-fuchsia-600/90 px-3 py-2 text-sm font-semibold text-white shadow-[0_6px_22px_rgba(147,51,234,0.22)] transition hover:-translate-y-0.5 hover:brightness-110"
           >
             New Chat
           </button>
@@ -205,48 +233,65 @@ export default function PublicChat() {
             </div>
           ) : (
             conversations.map((conversation) => (
-              <button
+              <div
                 key={conversation.id}
-                type="button"
-                onClick={() => setSelectedConversationId(conversation.id)}
-                className={`w-full rounded-xl border p-3 text-left transition ${
+                className={`rounded-xl border p-3 transition ${
                   selectedConversationId === conversation.id
-                    ? 'border-sky-500 bg-slate-800'
-                    : 'border-slate-800 bg-slate-950/30 hover:border-slate-700'
+                    ? 'border-violet-400/50 bg-violet-500/10 shadow-[inset_3px_0_0_0_rgba(192,132,252,0.9)]'
+                    : 'border-white/[0.06] bg-white/[0.02] hover:border-violet-300/20 hover:bg-white/[0.04]'
                 }`}
               >
-                <div className="mb-1 flex items-center justify-between gap-2">
-                  <span className="truncate font-medium text-white">{conversation.title}</span>
-                  {conversation.adminUnread ? (
-                    <span className="inline-block h-2.5 w-2.5 rounded-full bg-amber-400" />
-                  ) : null}
+                <div className="flex items-start gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedConversationId(conversation.id)}
+                    className="min-w-0 flex-1 text-left"
+                  >
+                    <span className="flex items-center justify-between gap-2">
+                      <span className="truncate font-medium text-white">{conversation.title}</span>
+                      {conversation.adminUnread ? (
+                        <span className="inline-block h-2.5 w-2.5 shrink-0 rounded-full bg-amber-400" />
+                      ) : null}
+                    </span>
+                    <span className="mt-1 block line-clamp-2 text-sm text-slate-400">
+                      {conversation.preview || 'No messages yet.'}
+                    </span>
+                    <span className="mt-2 block text-xs text-slate-500">
+                      {conversation.lastMessageAt
+                        ? new Date(conversation.lastMessageAt).toLocaleString([], {
+                            month: 'short',
+                            day: 'numeric',
+                            hour: 'numeric',
+                            minute: '2-digit'
+                          })
+                        : new Date(conversation.updatedAt).toLocaleString([], {
+                            month: 'short',
+                            day: 'numeric',
+                            hour: 'numeric',
+                            minute: '2-digit'
+                          })}
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteConversation(conversation.id)}
+                    aria-label={`Delete conversation: ${conversation.title}`}
+                    title="Delete conversation"
+                    className="rounded-md px-2 py-1 text-xs text-slate-400 hover:bg-rose-500/15 hover:text-rose-300"
+                  >
+                    Delete
+                  </button>
                 </div>
-                <p className="line-clamp-2 text-sm text-slate-400">{conversation.preview || 'No messages yet.'}</p>
-                <p className="mt-2 text-xs text-slate-500">
-                  {conversation.lastMessageAt
-                    ? new Date(conversation.lastMessageAt).toLocaleString([], {
-                        month: 'short',
-                        day: 'numeric',
-                        hour: 'numeric',
-                        minute: '2-digit'
-                      })
-                    : new Date(conversation.updatedAt).toLocaleString([], {
-                        month: 'short',
-                        day: 'numeric',
-                        hour: 'numeric',
-                        minute: '2-digit'
-                      })}
-                </p>
-              </button>
+              </div>
             ))
           )}
         </div>
       </aside>
 
-      <main className="flex flex-1 flex-col bg-slate-950">
-        <div className="flex items-center justify-between border-b border-slate-800 bg-slate-950/80 px-6 py-4">
+      <main className="flex flex-1 flex-col bg-[#0b0912]">
+        <div className="flex items-center justify-between border-b border-violet-300/10 bg-[#0c0a14]/80 px-6 py-4 backdrop-blur-xl">
           <div>
-            <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Conversation</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-violet-300/70">ThomaGPT</p>
             <h2 className="text-lg font-semibold text-white">
               {selectedConversation?.title || 'Start a new conversation'}
             </h2>
@@ -264,12 +309,12 @@ export default function PublicChat() {
                   <div
                     className={`max-w-2xl rounded-2xl border px-4 py-3 shadow-soft ${
                       isUser
-                        ? 'border-slate-700 bg-slate-700/90 text-slate-100'
-                        : 'border-slate-700 bg-slate-900 text-slate-100'
+                        ? 'border-violet-300/15 bg-gradient-to-br from-violet-600/90 to-fuchsia-600/80 text-white shadow-[0_8px_32px_rgba(147,51,234,0.13)]'
+                        : 'border-white/[0.07] bg-[#151220] text-slate-100 shadow-[0_8px_32px_rgba(0,0,0,0.18)]'
                     }`}
                   >
                     <div className="mb-1 text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">
-                      {isUser ? 'You' : 'Assistant'}
+                      {isUser ? 'You' : 'Thoma'}
                     </div>
                     <div className="markdown-body text-sm">
                       <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content}</ReactMarkdown>
@@ -282,15 +327,15 @@ export default function PublicChat() {
 
           {assistantTyping ? (
             <div className="flex justify-start">
-              <div className="rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-300">
-                Assistant is typing...
+              <div className="rounded-xl border border-violet-300/15 bg-[#171322] px-3 py-2 text-sm text-violet-100">
+                Thoma is typing...
               </div>
             </div>
           ) : null}
         </div>
 
-        <div className="border-t border-slate-800 bg-slate-950 p-4">
-          <div className="flex items-end gap-3 rounded-2xl border border-slate-700 bg-slate-900 p-3">
+        <div className="border-t border-violet-300/10 bg-[#0c0a14]/90 p-4">
+          <div className="flex items-end gap-3 rounded-2xl border border-violet-300/15 bg-[#171322] p-3 shadow-[0_12px_40px_rgba(0,0,0,0.22)] transition focus-within:border-violet-400/50 focus-within:shadow-[0_0_0_3px_rgba(168,85,247,0.1)]">
             <textarea
               rows={1}
               value={draft}
@@ -307,7 +352,7 @@ export default function PublicChat() {
             <button
               type="button"
               onClick={handleSendMessage}
-              className="rounded-lg bg-sky-500 px-4 py-2 text-sm font-medium text-white transition hover:bg-sky-400 disabled:cursor-not-allowed disabled:bg-slate-700"
+              className="rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-600 px-4 py-2 text-sm font-semibold text-white shadow-[0_5px_18px_rgba(147,51,234,0.25)] transition hover:brightness-110 disabled:cursor-not-allowed disabled:from-slate-700 disabled:to-slate-700"
               disabled={!draft.trim()}
             >
               Send

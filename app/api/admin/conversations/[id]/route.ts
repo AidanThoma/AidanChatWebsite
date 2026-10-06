@@ -143,3 +143,41 @@ export async function POST(
     }
   });
 }
+
+export async function DELETE(
+  _request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const session = await auth();
+  const { id } = await params;
+
+  if (!session?.user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const conversation = await prisma.conversation.findUnique({
+    where: { id },
+    select: {
+      id: true,
+      anonymousUser: { select: { anonymousToken: true } }
+    }
+  });
+
+  if (!conversation) {
+    return NextResponse.json({ error: 'Conversation not found.' }, { status: 404 });
+  }
+
+  await prisma.conversation.delete({ where: { id } });
+
+  type SocketServer = {
+    to: (room: string) => {
+      emit: (event: string, payload: unknown) => void;
+    };
+  };
+  const io = (globalThis as typeof globalThis & { io?: SocketServer }).io;
+  const payload = { conversationId: id };
+  io?.to('admin-room').emit('conversation:deleted', payload);
+  io?.to(`user:${conversation.anonymousUser.anonymousToken}`).emit('conversation:deleted', payload);
+
+  return NextResponse.json({ success: true });
+}

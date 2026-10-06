@@ -53,13 +53,7 @@ export async function POST(request: Request) {
         anonymousUserId: user.id,
         title: truncateTitle(content),
         lastMessageAt: new Date(),
-        adminUnread: true,
-        messages: {
-          create: [{ sender: 'USER', content, read: false }]
-        }
-      },
-      include: {
-        messages: true
+        adminUnread: true
       }
     });
   }

@@ -63,6 +63,15 @@ export default function AdminInbox() {
       }
     });
 
+    socket.on('conversation:deleted', ({ conversationId }: { conversationId: string }) => {
+      setConversations((current) => current.filter((conversation) => conversation.id !== conversationId));
+      if (conversationId === selectedConversationId) {
+        setSelectedConversationId(null);
+        setMessageHistory([]);
+        setDraft('');
+      }
+    });
+
     socket.on('typing:start', (payload) => {
       if (payload.userType === 'USER' && payload.conversationId === selectedConversationId) {
         setUserTyping(true);
@@ -106,6 +115,23 @@ export default function AdminInbox() {
     await loadConversation(selectedConversationId);
   };
 
+  const handleDeleteConversation = async () => {
+    if (!selectedConversationId) return;
+    if (!window.confirm('Delete this conversation and all its messages? This cannot be undone.')) return;
+
+    const conversationId = selectedConversationId;
+    const response = await fetch(`/api/admin/conversations/${conversationId}`, { method: 'DELETE' });
+    if (!response.ok) {
+      window.alert('Unable to delete this conversation. Please try again.');
+      return;
+    }
+
+    setConversations((current) => current.filter((conversation) => conversation.id !== conversationId));
+    setSelectedConversationId(null);
+    setMessageHistory([]);
+    setDraft('');
+  };
+
   const handleTyping = (isTyping: boolean) => {
     if (!selectedConversationId) return;
     socketRef.current?.emit(isTyping ? 'typing:start' : 'typing:stop', {
@@ -115,11 +141,11 @@ export default function AdminInbox() {
   };
 
   return (
-    <div className="flex h-screen bg-slate-950 text-slate-100">
-      <aside className="w-[380px] border-r border-slate-800 bg-slate-900/90 p-3">
-        <div className="mb-3 flex items-center justify-between gap-3 border-b border-slate-800 pb-3">
+    <div className="flex h-screen bg-[#080711] text-slate-100">
+      <aside className="w-[380px] border-r border-violet-300/10 bg-[#100d1b]/95 p-4">
+        <div className="mb-3 flex items-center justify-between gap-3 border-b border-violet-300/10 pb-3">
           <div>
-            <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Admin</p>
+            <p className="brand-text text-xs font-bold uppercase tracking-[0.2em]">ThomaGPT</p>
             <h1 className="text-xl font-semibold text-white">Inbox</h1>
           </div>
           <button
@@ -144,8 +170,8 @@ export default function AdminInbox() {
                 onClick={() => loadConversation(conversation.id)}
                 className={`w-full rounded-xl border p-3 text-left transition ${
                   selectedConversationId === conversation.id
-                    ? 'border-sky-500 bg-slate-800'
-                    : 'border-slate-800 bg-slate-950/50 hover:border-slate-700'
+                    ? 'border-violet-400/50 bg-violet-500/10 shadow-[inset_3px_0_0_0_rgba(192,132,252,0.9)]'
+                    : 'border-white/[0.06] bg-white/[0.02] hover:border-violet-300/20 hover:bg-white/[0.04]'
                 }`}
               >
                 <div className="mb-1 flex items-center justify-between gap-2">
@@ -169,16 +195,23 @@ export default function AdminInbox() {
         </div>
       </aside>
 
-      <section className="flex flex-1 flex-col bg-slate-950">
+      <section className="flex flex-1 flex-col bg-[#0b0912]">
         {selectedConversationId ? (
           <>
-            <div className="flex items-center justify-between border-b border-slate-800 bg-slate-950/70 px-6 py-4">
+            <div className="flex items-center justify-between border-b border-violet-300/10 bg-[#0c0a14]/80 px-6 py-4">
               <div>
-                <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Conversation</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-violet-300/70">Conversation</p>
                 <h2 className="text-lg font-semibold text-white">
                   {conversations.find((conversation) => conversation.id === selectedConversationId)?.title ?? 'Chat'}
                 </h2>
               </div>
+              <button
+                type="button"
+                onClick={handleDeleteConversation}
+                className="rounded-lg border border-rose-500/40 px-3 py-2 text-sm text-rose-300 hover:bg-rose-500/10"
+              >
+                Delete conversation
+              </button>
             </div>
 
             <div className="flex-1 space-y-4 overflow-y-auto px-6 py-5">
@@ -189,12 +222,12 @@ export default function AdminInbox() {
                     <div
                       className={`max-w-2xl rounded-2xl border px-4 py-3 ${
                         isUser
-                          ? 'border-slate-700 bg-slate-900 text-slate-100'
-                          : 'border-sky-500/50 bg-sky-500/10 text-slate-100'
+                          ? 'border-white/[0.07] bg-[#151220] text-slate-100'
+                          : 'border-violet-300/15 bg-gradient-to-br from-violet-600/25 to-fuchsia-600/15 text-slate-100'
                       }`}
                     >
                       <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">
-                        {isUser ? 'User' : 'Assistant'}
+                        {isUser ? 'User' : 'Thoma'}
                       </div>
                       <p className="whitespace-pre-wrap text-sm">{message.content}</p>
                     </div>
@@ -204,15 +237,15 @@ export default function AdminInbox() {
 
               {userTyping ? (
                 <div className="flex justify-start">
-                  <div className="rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-300">
+                  <div className="rounded-xl border border-violet-300/15 bg-[#171322] px-3 py-2 text-sm text-violet-100">
                     User is typing...
                   </div>
                 </div>
               ) : null}
             </div>
 
-            <div className="border-t border-slate-800 bg-slate-950 p-4">
-              <div className="flex items-end gap-3 rounded-2xl border border-slate-700 bg-slate-900 p-3">
+            <div className="border-t border-violet-300/10 bg-[#0c0a14]/90 p-4">
+              <div className="flex items-end gap-3 rounded-2xl border border-violet-300/15 bg-[#171322] p-3 transition focus-within:border-violet-400/50 focus-within:shadow-[0_0_0_3px_rgba(168,85,247,0.1)]">
                 <textarea
                   ref={textareaRef}
                   rows={1}
@@ -228,13 +261,13 @@ export default function AdminInbox() {
                       handleSendReply();
                     }
                   }}
-                  placeholder="Reply as Assistant..."
+                  placeholder="Reply as Thoma..."
                   className="max-h-40 min-h-[44px] flex-1 resize-none border-0 bg-transparent px-2 py-2 text-base text-white outline-none placeholder:text-slate-500"
                 />
                 <button
                   type="button"
                   onClick={handleSendReply}
-                  className="rounded-lg bg-sky-500 px-4 py-2 text-sm font-medium text-white transition hover:bg-sky-400 disabled:cursor-not-allowed disabled:bg-slate-700"
+                  className="rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-600 px-4 py-2 text-sm font-semibold text-white shadow-[0_5px_18px_rgba(147,51,234,0.25)] transition hover:brightness-110 disabled:cursor-not-allowed disabled:from-slate-700 disabled:to-slate-700"
                   disabled={!draft.trim()}
                 >
                   Send

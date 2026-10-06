@@ -1,4 +1,4 @@
-# HumanChat
+# ThomaGPT
 
 A self-hosted human-powered chat application built with Next.js, TypeScript, Tailwind CSS, Prisma, PostgreSQL, and Socket.IO.
 
@@ -8,6 +8,7 @@ A self-hosted human-powered chat application built with Next.js, TypeScript, Tai
 - Admin inbox at `/admin` with authentication
 - Real-time delivery of public messages to the admin inbox
 - Real-time admin replies back to the anonymous user
+- Users can delete their own conversations; admins can delete any conversation
 - Typing indicators and realtime presence basics
 - Docker Compose support for local hosting
 
